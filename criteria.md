@@ -57,39 +57,19 @@ in at least 4 of 5 tries.
 
 ## 4. Something about your chunks
 
-<!-- YOU WRITE THIS ONE.
-
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
-
+At least 4 of 5 sampled chunks read as a complete thought and do not cut a sentence or a rule in half.
 
 **Why this target:**
-
-
+In the campus life corpus, the most useful information is often one practical fact in a single paragraph—things like the housing lottery rule, a wait time, or a dorm elevator issue. I want chunks to keep that fact intact, because if a chunk drops the end of the sentence the retriever can still match on a keyword but it loses the meaning the answer depends on. I set the target at 4 of 5 because a single chunk may still be awkward when a paragraph is unusually long or a sentence is dense.
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-
+For at least 4 of my 5 test questions, the system answers with the expected phrase or a close paraphrase from the retrieved document, and does not invent an alternative fact.
 
 **Why this target:**
+I care most about factual grounding over broad fluency. A system that sounds confident but replaces a real detail with a plausible but wrong one is not useful for student advice, so I set a specific fact-checking target rather than a vague "helpful answer" standard. Four of five leaves room for one hard question without letting the model off the hook for the rest.
 
 
 
