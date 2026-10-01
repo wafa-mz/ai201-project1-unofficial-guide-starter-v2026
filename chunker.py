@@ -22,6 +22,7 @@ to it, write down what you saw, and move on. That's a real observation about
 your pipeline, not giving up.
 """
 
+import re
 from dataclasses import dataclass
 
 import config
@@ -82,22 +83,68 @@ def fallback_split(
 
 def split_documents(documents: list[Document]) -> list[Chunk]:
     """
-    Split documents into chunks. ⚠️ REPLACE THE BODY OF THIS IN MILESTONE 3.
-
-    Right now it just calls the fallback. That is the plain, generic behaviour
-    the brief is talking about.
-
-    When you write your own strategy, set `produced_by` to
-    "chunker.py::split_documents" so your README's Sample Chunks section names
-    the right function. `app.py chunks` prints that string for you.
-
-    Things worth thinking about before you write any code:
-      - Are your documents short posts or long guides?
-      - Is the useful information in one sentence, or spread over a paragraph?
-      - Would splitting on paragraph breaks keep more thoughts intact than
-        splitting on a character count?
+    Split campus-life posts into paragraphs and complete thoughts rather than
+    arbitrary character windows. Most documents are short answers, so a paragraph
+    is often the right unit; if a paragraph is longer than the target, we break it
+    on sentence boundaries so no chunk is a half-thought.
     """
-    return fallback_split(documents)
+    target = 420
+    overlap = 80
+    chunks: list[Chunk] = []
+
+    for doc in documents:
+        blocks = [b.strip() for b in re.split(r"\n\s*\n+", doc.text.strip()) if b.strip()]
+        if not blocks:
+            continue
+
+        merged: list[str] = []
+        current = ""
+        for block in blocks:
+            candidate = block if not current else f"{current} {block}"
+            if not current:
+                current = block
+            elif len(candidate) <= target:
+                current = candidate
+            else:
+                merged.append(current.strip())
+                current = block
+        if current.strip():
+            merged.append(current.strip())
+
+        for block in merged:
+            sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", block) if s.strip()]
+            if len(block) <= target and not sentences:
+                sentences = [block]
+
+            current_sentence = ""
+            for sentence in sentences:
+                candidate = sentence if not current_sentence else f"{current_sentence} {sentence}"
+                if not current_sentence:
+                    current_sentence = sentence
+                elif len(candidate) <= target:
+                    current_sentence = candidate
+                else:
+                    chunks.append(
+                        Chunk(
+                            text=current_sentence.strip(),
+                            source=doc.source,
+                            index=len([c for c in chunks if c.source == doc.source]),
+                            produced_by="chunker.py::split_documents",
+                        )
+                    )
+                    overlap_tail = current_sentence[-overlap:] if overlap < len(current_sentence) else current_sentence
+                    current_sentence = f"{overlap_tail} {sentence}".strip()
+            if current_sentence.strip():
+                chunks.append(
+                    Chunk(
+                        text=current_sentence.strip(),
+                        source=doc.source,
+                        index=len([c for c in chunks if c.source == doc.source]),
+                        produced_by="chunker.py::split_documents",
+                    )
+                )
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:
