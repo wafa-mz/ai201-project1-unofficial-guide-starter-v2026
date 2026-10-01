@@ -1,19 +1,6 @@
 # The Unofficial Guide
 
-<!-- Replace this line with your name and which corpus you picked. -->
-
-> **This file is your submission.** Fill it in as you go — most sections get
-> written during the milestone that produces them, not at the end.
->
-> How the starter works, and every command you'll need, is in `RUNNING.md`.
-> Leave that file alone.
->
-> **Paste everything as text.** No screenshots, no video. A typed table gets
-> full credit; a picture of the same table gets none.
->
-> Delete these instruction blocks as you replace them. The `<!-- -->` comments
-> are notes to you and don't show up when the page renders — you can leave them
-> or remove them.
+This project uses the campus_life corpus and answers practical student questions such as whether the housing lottery is random, how long the Kestrel Commons line is at lunch, and how much laundry costs in a dorm. The system retrieves text from the corpus, enforces a relevance cutoff, and then answers using only the matched chunks and their source files.
 
 ---
 
@@ -21,104 +8,75 @@
 
 ## What This Does
 
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
-
-     Milestone 5. -->
+The system indexes the campus_life corpus, splits each document into complete thought chunks, and retrieves the closest chunks for a new question. It then uses a relevance gate to refuse off-topic questions before asking the model to answer, keeping the generated response grounded in the actual student posts. This makes it useful for questions like course advice, housing tradeoffs, and dining hall logistics instead of vague general-purpose advice.
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** 420 characters
+**Overlap:** 80 characters
 
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
-
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
-
-     Milestone 3. -->
+I picked a paragraph-aware chunker for this corpus because the documents are short student posts where a useful fact usually sits inside one paragraph or one clear sentence. A hard 800-character window would cut through student advice and bury the real claim in unrelated text, while a smaller window would split a rule or description into fragments. The overlap keeps neighboring chunks from losing continuity when a paragraph spans a sentence break, but it stays short enough that each chunk still reads as one coherent answer.
 
 ## Sample Chunks
 
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
-
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
-
-**Chunk 1** — source: `` — produced by: ``
+**Chunk 1** — source: `admin_add_drop_deadline.txt` — produced by: `chunker.py::split_documents`
 
 ```
+On the add/drop deadline You can add a course through the end of the second week. Dropping is a longer window — through the end of week six — but a drop after week two shows as a W on your transcript. Nothing anywhere on the registrar's site says this plainly, and students find out from each other.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `course_biol_160_exams.txt` — produced by: `chunker.py::split_documents`
 
 ```
+BIOL 160 Cell Biology — assessment Four unit tests and a cumulative final. Not curved. The unit tests come fast, roughly every three weeks; falling behind once is very hard to recover from.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `course_math_220.txt` — produced by: `chunker.py::split_documents`
 
 ```
+MATH 220 Linear Algebra I lived here my sophomore year. Format is chalk-and-talk lecture, weekly problem sets marked for correctness. Assessment: two midterms and a cumulative final. Curved to a b- median. Expect 6 to 8 hours a week, almost all of it on problem sets. The one piece of advice: the problem sets are the course; the lectures make sense afterwards rather than during.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `dining_the_atrium_followup.txt` — produced by: `chunker.py::split_documents`
 
 ```
+Re: The Atrium Adding to what people have said about The Atrium. The wait figure of no queue matches what I've seen. If you're trying to eat between classes, go before 11:45 and it's a different building entirely. Also worth saying: pickup is clean by 1:15 and not restocked again until the next morning. Nobody tells you this at orientation.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `housing_innisfree_hall.txt` — produced by: `chunker.py::split_documents`
 
 ```
+Laundry costs $1.75 wash, $1.75 dry, app-based. On noise: moderate; the building is L-shaped and the short wing is much quieter.
 ```
 
 ## Sample Answer
 
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
+**Question:** Is the housing lottery random?
 
-**Question:**
+**Answer:** No. According to `admin_housing_lottery.txt`, the lottery is only random for rising sophomores; juniors and seniors are ordered by accumulated credit hours first, and only tie-breaks are random.
 
-**Answer:**
+**My relevance cutoff:** 0.68
 
-```
-```
-
-**My relevance cutoff:**
-
-<!-- The number you set in config.py, and how you got there.
-
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
-
-     Milestone 4. -->
+I set the cutoff at 0.68 after recording the best distance for five in-corpus questions and five clearly out-of-scope ones. The in-corpus questions clustered between 0.17 and 0.49, while the off-topic questions stayed between 0.82 and 0.93. The gap between 0.49 and 0.82 was wide enough that it refused off-topic questions without rejecting the questions the corpus actually covered.
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| Is the housing lottery random? | Yes | 0.2541 |
+| What are the actual wait times at Kestrel Commons around lunch? | Yes | 0.1688 |
+| Which dorm is closest to the science quad? | Yes | 0.4880 |
+| How much does laundry cost at Aldridge Hall? | Yes | 0.2376 |
+| What do students say about the dining hall salad bar after 1:30? | Yes | 0.4034 |
+| What is the capital of Mongolia? | No | 0.8246 |
+| How do I change the oil in a diesel engine? | No | 0.9340 |
+| Who won the 1994 World Cup? | No | 0.8859 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.8442 |
+| How do I write a for loop in Rust? | No | 0.8960 |
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+**1.** I asked an AI model to help me reason about my corpus shape before coding the chunker. It suggested a paragraph-oriented strategy, but the actual documents are short and highly fact-dense, so I tightened the plan to paragraph-plus-sentence splitting and added a target size and overlap that fit the campus_life posts specifically.
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
-
-     Milestone 5. -->
-
-**1.**
-
-**2.**
+**2.** I asked an AI model to test whether my acceptance criteria were measurable enough to defend. It pointed out that "good retrieval" was too vague, so I replaced it with specific test questions and explicit fact-check expectations tied to the corpus rather than broad qualitative language.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
