@@ -78,6 +78,8 @@ I set the cutoff at 0.68 after recording the best distance for five in-corpus qu
 
 **2.** I asked an AI model to test whether my acceptance criteria were measurable enough to defend. It pointed out that "good retrieval" was too vague, so I replaced it with specific test questions and explicit fact-check expectations tied to the corpus rather than broad qualitative language.
 
+**3.** In this unit, I used an AI model to check whether my verdicts were being read too generously and whether a proposed hybrid-search improvement would really help a retrieval failure rather than just look more advanced. Because the system already met all five targets before the fix, the model helped me keep the before/after comparison honest instead of writing a change that only sounded plausible.
+
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
      claims earns nothing.
@@ -93,111 +95,106 @@ I set the cutoff at 0.68 after recording the best distance for five in-corpus qu
 
 ## Run Log — Before
 
-<!-- Your five criteria, three runs each. `python run_eval.py --label before`
-     runs the questions, puts the OUT_OF_SCOPE ones through the gate, and
-     writes it all into results/ for you. Targets come from criteria.md; the
-     verdict column is your call.
-
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
-
-     Milestone 1. 
+I ran the full evaluation with `python run_eval.py --label before` and logged the result in `results/run_2026-10-03_1307_before.md`. The file was produced by `run_eval.py::main` and the gate evidence was produced by `run_eval.py::check_out_of_scope`.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks read as complete thoughts | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 5. Answer contains the expected fact and no invented alternative | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
+### Real output from the before run
+
+This is the actual text the system produced in `results/run_2026-10-03_1307_before.md`.
+
+#### Question 1 — Is the housing lottery random?
+
+```
+The housing lottery is not entirely random; rising sophomores get a number drawn at random, but juniors and seniors are ordered by accumulated credit hours first, with random tie-breaks used only for ties (admin_housing_lottery.txt).
+```
+
+#### Question 2 — What are the actual wait times at Kestrel Commons around lunch?
+
+```
+The wait times at Kestrel Commons are 20 to 25 minutes between 12:15 and 1:00, and under 5 minutes before 11:45. 
+
+Source: dining_kestrel_commons.txt (and also mentioned in dining_kestrel_commons_followup.txt)
+```
+
+#### Question 3 — Which dorm is closest to the science quad?
+
+```
+Aldridge Hall is the closest building to the science quad (four minutes away). 
+
+Source: housing_aldridge_hall.txt (also mentioned in transit_walking.txt)
+```
+
+#### Question 4 — How much does laundry cost at Aldridge Hall?
+
+```
+Laundry at Aldridge Hall costs $1.75 for a wash and $1.50 for a dryer. 
+
+Sources: `housing_aldridge_hall_laundry.txt` and `housing_aldridge_hall.txt`
+```
+
+#### Question 5 — What do students say about the dining hall salad bar after 1:30?
+
+```
+Students say that the salad bar wilts after 1:30. 
+
+Source: `dining_kestrel_commons.txt` and `dining_kestrel_commons_followup.txt`
+```
+
+#### Gate result for out-of-scope questions
+
+```
+What is the capital of Mongolia? | 0.825 | refused
+How do I change the oil in a diesel engine? | 0.934 | refused
+Who won the 1994 World Cup? | 0.886 | refused
+What is the recommended dosage of ibuprofen for a headache? | 0.844 | refused
+How do I write a for loop in Rust? | 0.896 | refused
+```
 
 ## Verdicts
 
-<!-- MET or MISSED for each of the five, against the target you wrote last
-     unit — not a new one. Plus a sentence on how you decided. That sentence
-     matters most where it was close.
-
-     If your target said 4 of 5 and your runs came out 4, 3, 4, that's a MISS.
-     The target has to hold, not show up occasionally.
-
-     Milestone 2. -->
-
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunks contain the answer | MET | All five in-scope questions had at least one retrieved chunk that included the factual answer, and each answer included the key fact from the corpus. |
+| 2 | Every answer names a source | MET | Every answer included a document name or source label, and the pattern stayed consistent across all three runs. |
+| 3 | The relevance gate stops out-of-corpus questions | MET | The gate refused all five off-topic questions in the deterministic out-of-scope pass, which is 5/5 and above the 4/5 target. |
+| 4 | Sampled chunks read as complete thoughts | MET | The paragraph-based chunker kept the practical fact intact in the sample chunks, and the reviewed chunks read as complete statements rather than cut-off thoughts. |
+| 5 | The answer contains the expected fact and not an invented alternative | MET | Each answer matched the documented fact closely and did not introduce a conflicting claim; the benchmark examples all stayed grounded in the retrieved text. |
 
 ## Diagnoses
 
-<!-- For each miss: which stage caused it, and how. The stage alone isn't
-     enough — you need the mechanism.
-
-     Not a diagnosis: "Question 3 didn't work."
-     A diagnosis:     "Question 3 asks about laundry costs. The answer is in
-                       one sentence that got split across two chunks, so
-                       neither chunk on its own contains it."
-
-     The five stages: loading → chunking → embedding → retrieval → generation.
-
-     Look for a pattern. If three misses all ask about numbers, that's one
-     problem, not three.
-
-     Missed nothing? Say so, then say honestly whether your targets were set
-     low, and which one you'd tighten and to what.
-
-     Milestone 3. -->
+I did not miss any criteria, so there is no failed pipeline diagnosis to assign. The reason the system looked strong was not that the criteria were weak; it was that the corpus and the retrieval setup were already aligned with the questions I chose. The criterion I would tighten in a later unit is criterion 5: instead of a broad "close paraphrase" standard, I would require the answer to include the exact quantity or phrase that the document used for the most fact-sensitive questions, such as the exact laundry prices and wait times, so the response has a stricter factual anchor.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** I added a hybrid retrieval option in `store.py` and a `HYBRID_SEARCH` toggle in `config.py` that blends the existing semantic cosine search with a lightweight BM25 keyword pass using `rank_bm25`.
 
-**Why I picked it:**
-
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+**Why I picked it:** I picked this because it targets the retrieval stage directly: if a question contains exact names, numbers, or uncommon terms, a keyword pass can surface the strongest chunk even when semantic similarity is close but not decisive. The improvement was chosen as a retrieval-stage change, not a generation prompt change, because the raw answers were already grounded and the gate was already refusing the off-scope questions.
 
 ### Run Log — After
 
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
+I ran the full evaluation again with the hybrid flag enabled in the shell: `AI201_HYBRID=1 python run_eval.py --label after`. The log was written to `results/run_2026-10-03_1322_after.md`.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks read as complete thoughts | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 5. Answer contains the expected fact and no invented alternative | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-**Did it help?**
-
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
-
-     Milestone 4. -->
+**Did it help?** No. The before and after numbers were the same: 5/5 on all five criteria and 5/5 refusal on the out-of-scope gate. Because the system was already meeting all targets before the change, the hybrid search did not move the measured outcomes, so I would not keep it as a permanent improvement unless I had a harder set of questions that relied on exact names or numbers to break semantic matching.
 
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
-
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
-
-     Milestone 5. -->
+Nothing is still broken against the criteria I set in unit 1. The system met the targets it was designed for, and the main remaining issue is that the criteria themselves are a little easy: they are specific, but my test set is small and carefully selected. If I were iterating again, I would add a few more edge cases involving exact prices, nested policy language, or multi-part answers to make the system harder to pass accidentally.
 
 ## What I'd Do Differently
 
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
-
-     Milestone 5. -->
+I would tighten criterion 5 and add one more question that requires the model to choose between similar-sounding alternatives, such as a dorm or a dining hall with multiple numbers in the corpus. That would better test whether the model is really grounding on the right document instead of picking the most plausible answer. I would also keep one or two false-positive questions that are near-miss or partially overlapping with the corpus, because those are more realistic for a relevance gate than totally unrelated trivia.
