@@ -18,6 +18,7 @@ rest of the project if they were wrong:
 """
 
 import os
+import re
 import shutil
 from dataclasses import dataclass
 
@@ -178,11 +179,40 @@ def build_index(
     return len(chunks)
 
 
+def _tokenize(text: str) -> list[str]:
+    """Keep the keyword pass lightweight and reproducible across a single corpus."""
+    return re.findall(r"[A-Za-z0-9]+", (text or "").lower())
+
+
+def _bm25_scores(question: str, collection) -> dict[str, float]:
+    """Score every indexed chunk by BM25 and return a label -> score map."""
+    try:
+        from rank_bm25 import BM25Okapi
+    except ImportError:
+        return {}
+
+    raw = collection.get(include=["documents", "metadatas"])
+    ids = raw.get("ids", [])
+    docs = raw.get("documents", [])
+    if not ids or not docs:
+        return {}
+
+    question_tokens = _tokenize(question)
+    if not question_tokens:
+        return {}
+
+    corpus_tokens = [_tokenize(doc) for doc in docs]
+    model = BM25Okapi(corpus_tokens)
+    scores = model.get_scores(question_tokens)
+    return {ids[index]: float(score) for index, score in enumerate(scores)}
+
+
 def search(
     question: str,
     top_k: int | None = None,
     corpus: str | None = None,
     variant: str = "default",
+    hybrid: bool | None = None,
 ) -> list[Result]:
     """
     Retrieve the chunks closest in meaning to a question.
@@ -190,6 +220,7 @@ def search(
     Returns them nearest-first, each with its distance.
     """
     top_k = top_k or config.TOP_K
+    hybrid = config.HYBRID_SEARCH if hybrid is None else hybrid
     name = config.collection_name(corpus, variant)
 
     try:
@@ -208,15 +239,29 @@ def search(
     for text, meta, distance in zip(
         raw["documents"][0], raw["metadatas"][0], raw["distances"][0]
     ):
-        results.append(
-            Result(
-                text=text,
-                source=str(meta.get("source", "unknown")),
-                label=f"{meta.get('source', 'unknown')}#{meta.get('index', 0)}",
-                distance=float(distance),
-                produced_by=str(meta.get("produced_by", "unknown")),
-            )
+        result = Result(
+            text=text,
+            source=str(meta.get("source", "unknown")),
+            label=f"{meta.get('source', 'unknown')}#{meta.get('index', 0)}",
+            distance=float(distance),
+            produced_by=str(meta.get("produced_by", "unknown")),
         )
+        results.append(result)
+
+    if hybrid:
+        bm25_scores = _bm25_scores(question, collection)
+        if bm25_scores:
+            max_score = max(bm25_scores.values()) or 1.0
+            scored = []
+            for result in results:
+                bm25 = bm25_scores.get(result.label, 0.0)
+                bm25_norm = bm25 / max_score if max_score else 0.0
+                semantic_value = max(0.0, 1.0 - float(result.distance))
+                hybrid_score = 0.7 * semantic_value + 0.3 * bm25_norm
+                scored.append((hybrid_score, result))
+            scored.sort(key=lambda pair: pair[0], reverse=True)
+            results = [result for _, result in scored]
+
     return results
 
 
