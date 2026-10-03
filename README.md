@@ -101,7 +101,7 @@ I set the cutoff at 0.68 after recording the best distance for five in-corpus qu
      Criterion 3 is measured in one deterministic pass rather than three, so
      the same number goes in all three run columns. That's correct, not lazy.
 
-     Milestone 1. -->
+     Milestone 1. 
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
